@@ -1,0 +1,34 @@
+# Slack 알림 워크플로우
+name: Notify to Slack
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install & Test
+        run: |
+          npm ci
+          npm test --if-present
+
+      # 성공 시 슬랙 알림
+      - name: Notify success to Slack
+        if: ${{ success() }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": ":white_check_mark: *${{ github.workflow }}* 성공\n- Repo: ${{ github.repository }}\n- Branch: ${{ github.ref_name }}\n- Actor: ${{_
