@@ -10,23 +10,27 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # 🔑 v2 액션이 요구하는 환경변수(모든 스텝 공통)
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SLACK_WEBHOOK_TYPE: incoming-webhook   # 👈 소문자-하이픈
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node
+        if: ${{ hashFiles('**/package.json') != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # package.json이 있을 때만 실행
       - name: Install and Test
-        if: hashFiles('**/package.json') != ''
+        if: ${{ hashFiles('**/package.json') != '' }}
         run: |
           npm ci --prefer-offline --no-audit --fund=false || npm install
           npm test --if-present
 
-      # ✅ 성공 시 알림
       - name: Notify success to Slack
         if: ${{ success() }}
         uses: slackapi/slack-github-action@v2
@@ -37,27 +41,15 @@ jobs:
               "blocks": [
                 {
                   "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*${{ github.repository }}* `${{ github.ref_name }}` 브랜치 빌드 성공"
-                  }
+                  "text": { "type": "mrkdwn", "text": "*${{ github.repository }}* `${{ github.ref_name }}` 브랜치 빌드 성공" }
                 },
                 {
                   "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "워크플로우: ${{ github.workflow }} • 실행: #${{ github.run_number }}"
-                    }
-                  ]
+                  "elements": [ { "type": "mrkdwn", "text": "워크플로우: ${{ github.workflow }} • 실행: #${{ github.run_number }}" } ]
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK   # ✅ 반드시 추가
 
-      # ✅ 실패 시 알림
       - name: Notify failure to Slack
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v2
@@ -72,10 +64,7 @@ jobs:
                     { "title": "작업", "value": "${{ github.job }}", "short": true },
                     { "title": "러너", "value": "${{ runner.os }}", "short": true }
                   ],
-                  "footer": "에러 확인: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  "footer": "로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK   # ✅ 여기도 추가
