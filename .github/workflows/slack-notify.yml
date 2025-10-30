@@ -14,21 +14,50 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # package.json 있을 때만 Node 세팅
       - name: Setup Node
+        if: ${{ hashFiles('**/package.json') != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install & Test
-        run: |
-          npm ci
-          npm test --if-present
+      # 락파일이 있으면 npm ci
+      - name: Install deps (ci)
+        if: ${{ hashFiles('**/package-lock.json, **/npm-shrinkwrap.json') != '' }}
+        run: npm ci
 
-      # 성공 시 슬랙 알림
+      # 락파일이 없고 package.json만 있으면 npm install
+      - name: Install deps (install)
+        if: ${{ hashFiles('**/package.json') != '' && hashFiles('**/package-lock.json, **/npm-shrinkwrap.json') == '' }}
+        run: npm install
+
+      # 테스트는 package.json 있을 때만
+      - name: Test
+        if: ${{ hashFiles('**/package.json') != '' }}
+        run: npm test --if-present
+
+      # 성공 시 슬랙
       - name: Notify success to Slack
         if: ${{ success() }}
         uses: slackapi/slack-github-action@v1
         with:
           payload: |
             {
-              "text": ":white_check_mark: *${{ github.workflow }}* 성공\n- Repo: ${{ github.repository }}\n- Branch: ${{ github.ref_name }}\n- Actor: ${{_
+              "text": ":white_check_mark: *${{ github.workflow }}* 성공\n- Repo: ${{ github.repository }}\n- Branch: ${{ github.ref_name }}\n- Actor: ${{ github.actor }}\n- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      # 실패 시 슬랙
+      - name: Notify failure to Slack
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": ":x: *${{ github.workflow }}* 실패\n- Repo: ${{ github.repository }}\n- Branch: ${{ github.ref_name }}\n- Actor: ${{ github.actor }}\n- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
