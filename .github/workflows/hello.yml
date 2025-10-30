@@ -1,20 +1,51 @@
-name: Hello World
+# Slack 알림 워크플로우
+name: Notify to Slack
 
 on:
   push:
+    branches: [ "main" ]
+  pull_request:
 
 jobs:
-  greet:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 인사 출력
-        shell: bash
-        run: |
-          echo "안녕하세요, GitHub Actions!"
-          echo "브랜치: ${{ github.ref }} / 유저: ${{ github.actor }}"
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: 현재 시간 출력
-        shell: bash
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install & Test
         run: |
-          echo "실행 시간: $(date)"
+          npm ci
+          npm test --if-present
+
+      # 성공 시 슬랙 알림
+      - name: Notify success to Slack
+        if: ${{ success() }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": ":white_check_mark: *${{ github.workflow }}* 성공\n- Repo: ${{ github.repository }}\n- Branch: ${{ github.ref_name }}\n- Actor: ${{ github.actor }}\n- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      # 실패 시 슬랙 알림
+      - name: Notify failure to Slack
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": ":x: *${{ github.workflow }}* 실패\n- Repo: ${{ github.repository }}\n- Branch: ${{ github.ref_name }}\n- Actor: ${{ github.actor }}\n- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
