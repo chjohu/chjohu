@@ -23,10 +23,10 @@ jobs:
       - name: Install and Test
         if: hashFiles('**/package.json') != ''
         run: |
-          npm ci --prefer-offline --no-audit --fund=false
+          npm ci --prefer-offline --no-audit --fund=false || npm install
           npm test --if-present
 
-      # 성공 시 알림
+      # ✅ 성공 시 알림
       - name: Notify success to Slack
         if: ${{ success() }}
         uses: slackapi/slack-github-action@v2
@@ -55,8 +55,9 @@ jobs:
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK   # ✅ 반드시 추가
 
-      # 실패 시 알림
+      # ✅ 실패 시 알림
       - name: Notify failure to Slack
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v2
@@ -77,3 +78,4 @@ jobs:
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK   # ✅ 여기도 추가
